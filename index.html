@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Invasores Galácticos</title>
+    <link rel="preload" href="assets/player.svg" as="image">
+    <link rel="preload" href="assets/alien.svg" as="image">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="frame">
+      <aside class="hud">
+        <div class="brand">
+          <div class="logo">IG</div>
+          <div class="title">Invasores Galácticos</div>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <span>Derrotadas</span>
+            <strong id="score">0</strong>
+          </div>
+          <div class="stat">
+            <span>Impactos</span>
+            <strong id="hits">0</strong>
+          </div>
+          <div class="stat">
+            <span>Nivel</span>
+            <strong id="level">1</strong>
+          </div>
+          <div class="stat">
+            <span>Ambiente</span>
+            <button id="toggle-stars" class="btn">Estrellas</button>
+          </div>
+        </div>
+        <div class="alien-info">
+          <h3>Aliens Activos</h3>
+          <div id="alien-types" class="alien-list"></div>
+        </div>
+        <div class="help">
+          <h3>Controles</h3>
+          <ul>
+            <li>← → / A D: mover</li>
+            <li>Espacio: disparar</li>
+            <li>P: pausar</li>
+          </ul>
+        </div>
+      </aside>
+      <main class="stage">
+        <canvas id="game" width="960" height="600" aria-label="Lienzo del juego" role="img"></canvas>
+        <div id="overlay" class="overlay hidden">
+          <div class="panel">
+            <h2>¡Pausado!</h2>
+            <p>Presiona P para continuar.</p>
+          </div>
+        </div>
+        <div id="gameover" class="overlay hidden">
+          <div class="panel">
+            <h2>Game Over</h2>
+            <p>Naves derribadas: <strong id="final-score">0</strong></p>
+            <button id="restart" class="btn primary">Reiniciar</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="game.js"></script>
+  </body>
+  </html>
+
+
