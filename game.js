@@ -182,7 +182,8 @@
     running: true,
     gameOver: false,
     score: 0,
-    hits: 0,
+    hits: 0, // total times the player has been hit (stat)
+    lives: 3, // current lives, can exceed 3 via satellites
     level: 1,
     nextLevelAt: 10,
     player: { x: 0, y: 0, w: 52, h: 52, speed: 420 },
@@ -208,6 +209,7 @@
     state.gameOver = false;
     state.score = 0;
     state.hits = 0;
+    state.lives = 3;
     state.bullets.length = 0;
     state.alienBullets.length = 0;
     state.aliens.length = 0;
@@ -544,10 +546,10 @@
       if (rectsOverlap(b, state.player)) {
         state.alienBullets.splice(i, 1);
         state.hits += 1;
+        state.lives -= 1;
         hitsEl.textContent = String(state.hits);
         sfx.playerHit();
-        // End game after 3 hits
-        if (state.hits >= 3) {
+        if (state.lives <= 0) {
           state.gameOver = true;
           state.running = false;
           finalScoreEl.textContent = String(state.score);
@@ -563,10 +565,10 @@
       if (rectsOverlap(a, state.player)) {
         state.aliens.splice(i, 1);
         state.hits += 1;
+        state.lives -= 1;
         hitsEl.textContent = String(state.hits);
         sfx.playerHit();
-        // End game after 3 hits
-        if (state.hits >= 3) {
+        if (state.lives <= 0) {
           state.gameOver = true;
           state.running = false;
           finalScoreEl.textContent = String(state.score);
@@ -582,9 +584,10 @@
       if (rectsOverlap(a, state.player)) {
         state.asteroids.splice(i, 1);
         state.hits += 1;
+        state.lives -= 1;
         hitsEl.textContent = String(state.hits);
         sfx.playerHit();
-        if (state.hits >= 3) {
+        if (state.lives <= 0) {
           state.gameOver = true;
           state.running = false;
           finalScoreEl.textContent = String(state.score);
@@ -599,10 +602,8 @@
       const p = state.satellites[i];
       if (rectsOverlap(p, state.player)) {
         state.satellites.splice(i, 1);
-        if (state.hits > 0) {
-          state.hits -= 1;
-          hitsEl.textContent = String(state.hits);
-        }
+        state.lives += 1;
+        // hits is a stat; leave unchanged
         sfx.pickup();
       }
     }
@@ -741,15 +742,16 @@
       ctx.restore();
     }
 
-    // UI: lives bar
+    // UI: lives bar (dynamic count)
     const margin = 12;
-    for (let i = 0; i < 3; i++) {
-      const x = canvas.width / pixelRatio - margin - (i + 1) * 18;
+    const boxSize = 12;
+    const spacing = 18;
+    const livesToDraw = Math.max(0, Math.min(50, state.lives)); // safety cap
+    for (let i = 0; i < livesToDraw; i++) {
+      const x = canvas.width / pixelRatio - margin - (i + 1) * spacing;
       const y = margin;
-      ctx.globalAlpha = i < 3 - state.hits ? 1 : 0.25;
       ctx.fillStyle = '#98ffe2';
-      ctx.fillRect(x, y, 12, 12);
-      ctx.globalAlpha = 1;
+      ctx.fillRect(x, y, boxSize, boxSize);
     }
   }
 
