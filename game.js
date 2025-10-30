@@ -63,6 +63,12 @@
     };
   }
 
+  // Special GIF alien
+  const specialAlienImg = new Image();
+  // Try custom path first, fallback to legacy R.gif
+  specialAlienImg.src = 'assets/special-alien.gif';
+  specialAlienImg.onerror = () => { specialAlienImg.onerror = null; specialAlienImg.src = 'assets/R.gif'; };
+
   // Satellite images (3 types → grant 1,2,3 lives)
   const satelliteImgs = [new Image(), new Image(), new Image()];
   const satelliteSrcs = [
@@ -215,6 +221,8 @@
     asteroidCap: 2,
     satelliteChance: 0.001,
     satelliteCap: 1,
+    powerDoubleShot: false,
+    specialAlienPresent: false,
   };
 
   function resetGame() {
@@ -237,6 +245,8 @@
     state.asteroidCap = 2;
     state.satelliteChance = 0.001;
     state.satelliteCap = 1;
+    state.powerDoubleShot = false;
+    state.specialAlienPresent = false;
     state.level = 1;
     state.nextLevelAt = 10;
     scoreEl.textContent = '0';
@@ -340,6 +350,20 @@
     });
   }
 
+  function spawnSpecialAlien() {
+    if (state.specialAlienPresent) return;
+    const w = 56, h = 56;
+    const x = Math.random() * (canvas.width / pixelRatio - w - 16) + 8;
+    const y = -h - 40;
+    const speed = 80 + Math.random() * 40;
+    const hp = 5; // more resistant
+    state.aliens.push({
+      x, y, w, h, speed, type: 'special', t:0, ax:x, amp:24,
+      dir: 0, hp, canShoot: true, lastShotAt: 0, level: state.level
+    });
+    state.specialAlienPresent = true;
+  }
+
   // Asteroids
   function spawnAsteroid() {
     const size = 24 + Math.random() * 24; // 24-48px
@@ -385,13 +409,26 @@
     if (t - state.lastShotAt < state.fireCooldownMs) return;
     state.lastShotAt = t;
     const bw = 6, bh = 14;
-    state.bullets.push({
-      x: state.player.x + state.player.w / 2 - bw / 2,
-      y: state.player.y - bh + 4,
-      w: bw,
-      h: bh,
-      speed: 520
-    });
+    if (state.powerDoubleShot) {
+      const offsets = [-8, 8];
+      for (const off of offsets) {
+        state.bullets.push({
+          x: state.player.x + state.player.w / 2 - bw / 2 + off,
+          y: state.player.y - bh + 4,
+          w: bw,
+          h: bh,
+          speed: 520
+        });
+      }
+    } else {
+      state.bullets.push({
+        x: state.player.x + state.player.w / 2 - bw / 2,
+        y: state.player.y - bh + 4,
+        w: bw,
+        h: bh,
+        speed: 520
+      });
+    }
     sfx.shoot();
   }
 
@@ -428,6 +465,8 @@
       state.spawnTimer = 0;
       // dynamic difficulty: faster spawns over time
       state.spawnEveryMs = Math.max(state.spawnEveryMsMin, state.spawnEveryMs - (state.level >= 3 ? 5 : 3));
+      // Rare chance to spawn special GIF alien
+      if (Math.random() < 0.03) spawnSpecialAlien();
       spawnAlien();
       if (Math.random() < state.twinSpawnChance) spawnAlien();
     }
@@ -528,6 +567,10 @@
           sfx.alienHit();
           if (a.hp <= 0) {
             state.aliens.splice(i, 1);
+            if (a.type === 'special') {
+              state.powerDoubleShot = true;
+              state.specialAlienPresent = false;
+            }
             state.score += 1;
             scoreEl.textContent = String(state.score);
             destroyed = true;
@@ -564,6 +607,7 @@
         state.lives -= 1;
         hitsEl.textContent = String(state.hits);
         sfx.playerHit();
+        state.powerDoubleShot = false;
         if (state.lives <= 0) {
           state.gameOver = true;
           state.running = false;
@@ -583,6 +627,7 @@
         state.lives -= 1;
         hitsEl.textContent = String(state.hits);
         sfx.playerHit();
+        state.powerDoubleShot = false;
         if (state.lives <= 0) {
           state.gameOver = true;
           state.running = false;
@@ -602,6 +647,7 @@
         state.lives -= 1;
         hitsEl.textContent = String(state.hits);
         sfx.playerHit();
+        state.powerDoubleShot = false;
         if (state.lives <= 0) {
           state.gameOver = true;
           state.running = false;
@@ -699,8 +745,12 @@
 
     // Aliens
     for (const a of state.aliens) {
-      const alienImg = getAlienImg(a.level || state.level);
-      ctx.drawImage(alienImg, a.x, a.y, a.w, a.h);
+      if (a.type === 'special' && specialAlienImg && specialAlienImg.complete && specialAlienImg.naturalWidth > 0) {
+        ctx.drawImage(specialAlienImg, a.x, a.y, a.w, a.h);
+      } else {
+        const alienImg = getAlienImg(a.level || state.level);
+        ctx.drawImage(alienImg, a.x, a.y, a.w, a.h);
+      }
     }
 
     // Satellites (render using SVG images; fallback to glow if missing)
