@@ -359,6 +359,20 @@
       }
     }
 
+    // Aliens vs Asteroids collisions (destroy alien on impact)
+    for (let i = state.aliens.length - 1; i >= 0; i--) {
+      const a = state.aliens[i];
+      let collided = false;
+      for (let k = state.asteroids.length - 1; k >= 0; k--) {
+        const r = state.asteroids[k];
+        if (rectsOverlap(a, r)) { collided = true; break; }
+      }
+      if (collided) {
+        state.aliens.splice(i, 1);
+        sfx.alienHit();
+      }
+    }
+
     // Alien bullets
     for (let i = state.alienBullets.length - 1; i >= 0; i--) {
       const b = state.alienBullets[i];
