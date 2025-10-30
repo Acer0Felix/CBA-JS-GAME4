@@ -398,17 +398,17 @@
   // Main loop
   let last = nowMs();
   function update(dt) {
-    // Player position baseline
-    state.player.y = canvas.height / pixelRatio - state.player.h - 22;
-
-    // Input horizontal
+    // Input movement (horizontal + vertical)
     let dx = 0;
+    let dy = 0;
     if (keys.has('ArrowLeft') || keys.has('KeyA')) dx -= 1;
     if (keys.has('ArrowRight') || keys.has('KeyD')) dx += 1;
-    if (dx !== 0) {
-      state.player.x += dx * state.player.speed * dt;
-    }
+    if (keys.has('ArrowUp') || keys.has('KeyW')) dy -= 1;
+    if (keys.has('ArrowDown') || keys.has('KeyS')) dy += 1;
+    if (dx !== 0) state.player.x += dx * state.player.speed * dt;
+    if (dy !== 0) state.player.y += dy * (state.player.speed * 0.9) * dt;
     state.player.x = clamp(state.player.x, 8, canvas.width / pixelRatio - state.player.w - 8);
+    state.player.y = clamp(state.player.y, 8, canvas.height / pixelRatio - state.player.h - 22);
 
     // Shoot
     if (keys.has('Space')) shoot();
