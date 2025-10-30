@@ -63,6 +63,19 @@
     };
   }
 
+  // Satellite images (3 types → grant 1,2,3 lives)
+  const satelliteImgs = [new Image(), new Image(), new Image()];
+  const satelliteSrcs = [
+    'assets/satellite1.svg',
+    'assets/satellite2.svg',
+    'assets/satellite3.svg'
+  ];
+  for (let i = 0; i < satelliteImgs.length; i++) {
+    const img = satelliteImgs[i];
+    img.src = satelliteSrcs[i];
+    // if missing, leave as not complete; draw fallback shape instead
+  }
+
   // Get alien image based on level
   function getAlienImg(level) {
     if (level <= 2) return alienImgs[0];
@@ -339,14 +352,16 @@
     state.asteroids.push({ x, y, w, h, sx, sy, hp, rot: Math.random()*Math.PI, sr: (Math.random()*2-1)*0.8 });
   }
 
-  // Satellites (extra life powerup)
+  // Satellites (extra life powerup) - 3 types grant 1/2/3 lives
   function spawnSatellite() {
-    const size = 22;
+    const idx = Math.floor(Math.random() * 3); // 0,1,2
+    const livesGranted = idx + 1;
+    const size = 26 + idx * 2; // slightly larger for higher tier
     const w = size, h = size;
     const x = Math.random() * (canvas.width / pixelRatio - w - 16) + 8;
     const y = -h - 20;
     const sy = 80 + Math.random() * 40;
-    state.satellites.push({ x, y, w, h, sy });
+    state.satellites.push({ x, y, w, h, sy, idx, livesGranted });
   }
 
   function alienShoot(alien) {
@@ -597,12 +612,12 @@
       }
     }
 
-    // Collisions satellites vs player (gain life)
+    // Collisions satellites vs player (gain life: 1/2/3)
     for (let i = state.satellites.length - 1; i >= 0; i--) {
       const p = state.satellites[i];
       if (rectsOverlap(p, state.player)) {
         state.satellites.splice(i, 1);
-        state.lives += 1;
+        state.lives += (p.livesGranted || 1);
         // hits is a stat; leave unchanged
         sfx.pickup();
       }
@@ -688,32 +703,34 @@
       ctx.drawImage(alienImg, a.x, a.y, a.w, a.h);
     }
 
-    // Satellites (render as glowing orb with ring)
+    // Satellites (render using SVG images; fallback to glow if missing)
     for (const p of state.satellites) {
-      const cx = p.x + p.w/2;
-      const cy = p.y + p.h/2;
-      const r = Math.min(p.w, p.h) / 2;
-      ctx.save();
-      // glow
-      const g = ctx.createRadialGradient(cx, cy, r*0.2, cx, cy, r*1.4);
-      g.addColorStop(0, 'rgba(124,241,200,0.95)');
-      g.addColorStop(1, 'rgba(124,241,200,0.0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r*1.4, 0, Math.PI*2);
-      ctx.fill();
-      // core
-      ctx.fillStyle = '#98ffe2';
-      ctx.beginPath();
-      ctx.arc(cx, cy, r*0.7, 0, Math.PI*2);
-      ctx.fill();
-      // ring
-      ctx.strokeStyle = '#7cf1c8';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI*2);
-      ctx.stroke();
-      ctx.restore();
+      const img = satelliteImgs[p.idx || 0];
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, p.x, p.y, p.w, p.h);
+      } else {
+        const cx = p.x + p.w/2;
+        const cy = p.y + p.h/2;
+        const r = Math.min(p.w, p.h) / 2;
+        ctx.save();
+        const g = ctx.createRadialGradient(cx, cy, r*0.2, cx, cy, r*1.4);
+        g.addColorStop(0, 'rgba(124,241,200,0.95)');
+        g.addColorStop(1, 'rgba(124,241,200,0.0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r*1.4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#98ffe2';
+        ctx.beginPath();
+        ctx.arc(cx, cy, r*0.7, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#7cf1c8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // Asteroids (draw as rough rocks)
