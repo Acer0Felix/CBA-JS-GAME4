@@ -142,6 +142,7 @@
     bullets: [], // {x,y,w,h,speed}
     alienBullets: [], // {x,y,w,h,speed} - bullets from aliens
     aliens: [], // {x,y,w,h,speed,type,t,ax,amp,dir,hp,canShoot,lastShotAt}
+    asteroids: [], // {x,y,w,h,sx,sy,hp,rot,sr}
     lastShotAt: 0,
     fireCooldownMs: 180,
     spawnTimer: 0,
@@ -156,6 +157,7 @@
     state.bullets.length = 0;
     state.alienBullets.length = 0;
     state.aliens.length = 0;
+    state.asteroids.length = 0;
     state.lastShotAt = 0;
     state.spawnTimer = 0;
     state.spawnEveryMs = 550;
@@ -242,6 +244,18 @@
     });
   }
 
+  // Asteroids
+  function spawnAsteroid() {
+    const size = 24 + Math.random() * 24; // 24-48px
+    const w = size, h = size;
+    const x = Math.random() * (canvas.width / pixelRatio - w - 16) + 8;
+    const y = -h - Math.random() * 80;
+    const sy = 30 + Math.random() * 40; // vertical speed
+    const sx = (Math.random() * 2 - 1) * 20; // slight horizontal drift
+    const hp = size > 36 ? 3 : 2;
+    state.asteroids.push({ x, y, w, h, sx, sy, hp, rot: Math.random()*Math.PI, sr: (Math.random()*2-1)*0.8 });
+  }
+
   function alienShoot(alien) {
     const t = nowMs();
     const cooldown = 800 + Math.random() * 1200; // variable cooldown
@@ -310,6 +324,11 @@
       if (Math.random() < 0.18) spawnAlien();
     }
 
+    // Occasionally spawn asteroids (independent cadence)
+    if (Math.random() < 0.02) { // ~2% chance per frame ~ 1 every ~0.5s at 60fps
+      if (state.asteroids.length < 6) spawnAsteroid();
+    }
+
     // Aliens
     for (let i = state.aliens.length - 1; i >= 0; i--) {
       const a = state.aliens[i];
@@ -349,6 +368,18 @@
       }
     }
 
+    // Asteroids movement
+    for (let i = state.asteroids.length - 1; i >= 0; i--) {
+      const a = state.asteroids[i];
+      a.x += a.sx * dt;
+      a.y += a.sy * dt;
+      a.rot += a.sr * dt;
+      if (a.x < 4 || a.x > canvas.width / pixelRatio - a.w - 4) a.sx *= -1;
+      if (a.y > canvas.height / pixelRatio + 60) {
+        state.asteroids.splice(i, 1);
+      }
+    }
+
     // Collisions bullets vs aliens
     for (let i = state.aliens.length - 1; i >= 0; i--) {
       const a = state.aliens[i];
@@ -369,6 +400,23 @@
         }
       }
       if (destroyed) continue;
+    }
+
+    // Collisions bullets vs asteroids
+    for (let i = state.asteroids.length - 1; i >= 0; i--) {
+      const a = state.asteroids[i];
+      for (let j = state.bullets.length - 1; j >= 0; j--) {
+        const b = state.bullets[j];
+        if (rectsOverlap(a, b)) {
+          state.bullets.splice(j, 1);
+          a.hp -= 1;
+          sfx.alienHit();
+          if (a.hp <= 0) {
+            state.asteroids.splice(i, 1);
+          }
+          break;
+        }
+      }
     }
 
     // Collisions alien bullets vs player
@@ -399,6 +447,24 @@
         hitsEl.textContent = String(state.hits);
         sfx.playerHit();
         // End game after 3 hits
+        if (state.hits >= 3) {
+          state.gameOver = true;
+          state.running = false;
+          finalScoreEl.textContent = String(state.score);
+          gameoverEl.classList.remove('hidden');
+          break;
+        }
+      }
+    }
+
+    // Collisions asteroids vs player
+    for (let i = state.asteroids.length - 1; i >= 0; i--) {
+      const a = state.asteroids[i];
+      if (rectsOverlap(a, state.player)) {
+        state.asteroids.splice(i, 1);
+        state.hits += 1;
+        hitsEl.textContent = String(state.hits);
+        sfx.playerHit();
         if (state.hits >= 3) {
           state.gameOver = true;
           state.running = false;
@@ -464,6 +530,32 @@
     for (const a of state.aliens) {
       const alienImg = getAlienImg(a.level || state.level);
       ctx.drawImage(alienImg, a.x, a.y, a.w, a.h);
+    }
+
+    // Asteroids (draw as rough rocks)
+    for (const a of state.asteroids) {
+      const cx = a.x + a.w/2;
+      const cy = a.y + a.h/2;
+      const r = Math.min(a.w, a.h) / 2;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(a.rot);
+      ctx.beginPath();
+      const jag = 8;
+      for (let i = 0; i < jag; i++) {
+        const ang = (i / jag) * Math.PI * 2;
+        const rr = r * (0.8 + Math.random()*0.3);
+        const x = Math.cos(ang) * rr;
+        const y = Math.sin(ang) * rr;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#6e6f75';
+      ctx.strokeStyle = '#3e4046';
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
     }
 
     // UI: lives bar
