@@ -519,8 +519,13 @@
       } else if (a.type === 'drift') {
         a.y += a.speed * dt * 0.9;
         a.x += Math.cos(a.t * 1.6 + a.ax) * 40 * dt;
+      } else if (a.type === 'special') {
+        // Special alien: steady descent with subtle sine sway
+        a.y += a.speed * dt * 0.95;
+        a.x = a.ax + Math.sin(a.t * 2.2) * 36;
       }
       if (a.y > canvas.height / pixelRatio + 60) {
+        if (a.type === 'special') state.specialAlienPresent = false;
         state.aliens.splice(i, 1);
         continue;
       }
@@ -541,6 +546,7 @@
         if (rectsOverlap(a, r)) { collided = true; break; }
       }
       if (collided) {
+        if (a.type === 'special') state.specialAlienPresent = false;
         state.aliens.splice(i, 1);
         sfx.alienHit();
       }
@@ -668,6 +674,7 @@
     for (let i = state.aliens.length - 1; i >= 0; i--) {
       const a = state.aliens[i];
       if (rectsOverlap(a, state.player)) {
+        if (a.type === 'special') state.specialAlienPresent = false;
         state.aliens.splice(i, 1);
         state.hits += 1;
         state.lives -= 1;
