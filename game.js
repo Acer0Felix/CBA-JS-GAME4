@@ -32,6 +32,7 @@
 
   // Assets
   const playerImg = new Image();
+  const bgImg = new Image();
   const alienImgs = [
     new Image(), // alien.svg - L1-2
     new Image(), // alien2.svg - L3-4
@@ -42,6 +43,7 @@
     new Image()  // alien7.svg - L13+
   ];
   playerImg.src = 'assets/player.svg';
+  bgImg.src = 'assets/img_back.svg';
   const alienSrcs = [
     'assets/alien.svg',
     'assets/alien2.svg',
@@ -760,9 +762,13 @@
   }
 
   function draw() {
-    // Clear
-    ctx.fillStyle = '#070811';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Background
+    if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+      ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.fillStyle = '#070811';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     // Starfield
     if (starsEnabled) {
