@@ -16,7 +16,7 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   color: var(--text);
   background: var(--bg);
-  background-image: url('assets/alien3.svg');
+  background-image: url('assets/img_back.svg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
