@@ -196,6 +196,9 @@
   initMiniStars();
   window.addEventListener('resize', initMiniStars);
 
+  // Bonus flash effects for milestones
+  const bonusBursts = [];
+
   // Game state
   const state = {
     running: true,
@@ -224,6 +227,7 @@
     powerDoubleShot: false,
     specialAlienPresent: false,
     lastSpecialSpawnAt: -Infinity,
+    asteroidsDestroyed: 0,
   };
 
   function resetGame() {
@@ -249,6 +253,7 @@
     state.powerDoubleShot = false;
     state.specialAlienPresent = false;
     state.lastSpecialSpawnAt = -Infinity;
+    state.asteroidsDestroyed = 0;
     state.level = 1;
     state.nextLevelAt = 10;
     scoreEl.textContent = '0';
@@ -569,6 +574,13 @@
       }
     }
 
+    // Update bonus bursts
+    for (let i = bonusBursts.length - 1; i >= 0; i--) {
+      const e = bonusBursts[i];
+      e.t += dt * 1000;
+      if (e.t >= e.duration) bonusBursts.splice(i, 1);
+    }
+
     // Collisions bullets vs aliens
     for (let i = state.aliens.length - 1; i >= 0; i--) {
       const a = state.aliens[i];
@@ -605,7 +617,17 @@
           a.hp -= 1;
           sfx.alienHit();
           if (a.hp <= 0) {
+            // asteroid destroyed
             state.asteroids.splice(i, 1);
+            state.asteroidsDestroyed += 1;
+            // Every 50 destroyed: grant +5 lives and show bonus flash
+            if (state.asteroidsDestroyed % 50 === 0) {
+              const cx = a.x + a.w/2;
+              const cy = a.y + a.h/2;
+              bonusBursts.push({ x: cx, y: cy, t: 0, duration: 1000, bonus: true });
+              state.lives += 5;
+              sfx.pickup();
+            }
           }
           break;
         }
@@ -795,6 +817,28 @@
         ctx.stroke();
         ctx.restore();
       }
+    }
+
+    // Bonus bursts (flash + "Bonus!")
+    for (const e of bonusBursts) {
+      const k = Math.max(0, Math.min(1, e.t / e.duration));
+      const alpha = 1 - k;
+      const r = 10 + 40 * k;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
+      ctx.stroke();
+      if (e.bonus) {
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 18px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Bonus!', e.x, e.y - r - 12);
+      }
+      ctx.restore();
     }
 
     // Asteroids (draw as rough rocks)
