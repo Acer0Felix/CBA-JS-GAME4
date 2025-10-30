@@ -134,6 +134,11 @@
       ensureAudio();
       beep({type:'sawtooth', freq:180, duration:220});
       noise({duration:220, cutoff:500});
+    },
+    pickup() {
+      ensureAudio();
+      beep({type:'triangle', freq:660, duration:120});
+      beep({type:'triangle', freq:880, duration:100, detune:3});
     }
   };
 
@@ -185,6 +190,7 @@
     alienBullets: [], // {x,y,w,h,speed} - bullets from aliens
     aliens: [], // {x,y,w,h,speed,type,t,ax,amp,dir,hp,canShoot,lastShotAt}
     asteroids: [], // {x,y,w,h,sx,sy,hp,rot,sr}
+    satellites: [], // {x,y,w,h,sy}
     lastShotAt: 0,
     fireCooldownMs: 180,
     spawnTimer: 0,
@@ -193,6 +199,8 @@
     twinSpawnChance: 0,
     asteroidChance: 0.005,
     asteroidCap: 2,
+    satelliteChance: 0.001,
+    satelliteCap: 1,
   };
 
   function resetGame() {
@@ -204,6 +212,7 @@
     state.alienBullets.length = 0;
     state.aliens.length = 0;
     state.asteroids.length = 0;
+    state.satellites.length = 0;
     state.lastShotAt = 0;
     state.spawnTimer = 0;
     state.spawnEveryMs = 550;
@@ -211,6 +220,8 @@
     state.twinSpawnChance = 0;
     state.asteroidChance = 0.005;
     state.asteroidCap = 2;
+    state.satelliteChance = 0.001;
+    state.satelliteCap = 1;
     state.level = 1;
     state.nextLevelAt = 10;
     scoreEl.textContent = '0';
@@ -265,13 +276,13 @@
 
   // Level-based difficulty parameters
   function getLevelDifficulty(level) {
-    if (level <= 2) return { minSpawn: 520, twin: 0.0, asteroidChance: 0.005, asteroidCap: 2 };
-    if (level <= 4) return { minSpawn: 480, twin: 0.10, asteroidChance: 0.008, asteroidCap: 3 };
-    if (level <= 6) return { minSpawn: 420, twin: 0.18, asteroidChance: 0.012, asteroidCap: 4 };
-    if (level <= 8) return { minSpawn: 360, twin: 0.22, asteroidChance: 0.016, asteroidCap: 5 };
-    if (level <= 10) return { minSpawn: 300, twin: 0.26, asteroidChance: 0.020, asteroidCap: 6 };
-    if (level <= 12) return { minSpawn: 260, twin: 0.30, asteroidChance: 0.024, asteroidCap: 7 };
-    return { minSpawn: 220, twin: 0.34, asteroidChance: 0.028, asteroidCap: 8 };
+    if (level <= 2) return { minSpawn: 520, twin: 0.0, asteroidChance: 0.005, asteroidCap: 2, satelliteChance: 0.001, satelliteCap: 1 };
+    if (level <= 4) return { minSpawn: 480, twin: 0.10, asteroidChance: 0.008, asteroidCap: 3, satelliteChance: 0.0013, satelliteCap: 1 };
+    if (level <= 6) return { minSpawn: 420, twin: 0.18, asteroidChance: 0.012, asteroidCap: 4, satelliteChance: 0.0016, satelliteCap: 1 };
+    if (level <= 8) return { minSpawn: 360, twin: 0.22, asteroidChance: 0.016, asteroidCap: 5, satelliteChance: 0.0019, satelliteCap: 2 };
+    if (level <= 10) return { minSpawn: 300, twin: 0.26, asteroidChance: 0.020, asteroidCap: 6, satelliteChance: 0.0022, satelliteCap: 2 };
+    if (level <= 12) return { minSpawn: 260, twin: 0.30, asteroidChance: 0.024, asteroidCap: 7, satelliteChance: 0.0025, satelliteCap: 2 };
+    return { minSpawn: 220, twin: 0.34, asteroidChance: 0.028, asteroidCap: 8, satelliteChance: 0.0028, satelliteCap: 2 };
   }
   function applyDifficultyForLevel() {
     const d = getLevelDifficulty(state.level);
@@ -279,6 +290,8 @@
     state.twinSpawnChance = d.twin;
     state.asteroidChance = d.asteroidChance;
     state.asteroidCap = d.asteroidCap;
+    state.satelliteChance = d.satelliteChance;
+    state.satelliteCap = d.satelliteCap;
   }
   applyDifficultyForLevel();
 
@@ -322,6 +335,16 @@
     const sx = (Math.random() * 2 - 1) * 20; // slight horizontal drift
     const hp = size > 36 ? 3 : 2;
     state.asteroids.push({ x, y, w, h, sx, sy, hp, rot: Math.random()*Math.PI, sr: (Math.random()*2-1)*0.8 });
+  }
+
+  // Satellites (extra life powerup)
+  function spawnSatellite() {
+    const size = 22;
+    const w = size, h = size;
+    const x = Math.random() * (canvas.width / pixelRatio - w - 16) + 8;
+    const y = -h - 20;
+    const sy = 80 + Math.random() * 40;
+    state.satellites.push({ x, y, w, h, sy });
   }
 
   function alienShoot(alien) {
@@ -397,6 +420,11 @@
       if (state.asteroids.length < state.asteroidCap) spawnAsteroid();
     }
 
+    // Occasionally spawn satellites (extra life)
+    if (Math.random() < state.satelliteChance) {
+      if (state.satellites.length < state.satelliteCap) spawnSatellite();
+    }
+
     // Aliens
     for (let i = state.aliens.length - 1; i >= 0; i--) {
       const a = state.aliens[i];
@@ -459,6 +487,15 @@
       if (a.x < 4 || a.x > canvas.width / pixelRatio - a.w - 4) a.sx *= -1;
       if (a.y > canvas.height / pixelRatio + 60) {
         state.asteroids.splice(i, 1);
+      }
+    }
+
+    // Satellites movement
+    for (let i = state.satellites.length - 1; i >= 0; i--) {
+      const p = state.satellites[i];
+      p.y += p.sy * dt;
+      if (p.y > canvas.height / pixelRatio + 40) {
+        state.satellites.splice(i, 1);
       }
     }
 
@@ -557,6 +594,19 @@
       }
     }
 
+    // Collisions satellites vs player (gain life)
+    for (let i = state.satellites.length - 1; i >= 0; i--) {
+      const p = state.satellites[i];
+      if (rectsOverlap(p, state.player)) {
+        state.satellites.splice(i, 1);
+        if (state.hits > 0) {
+          state.hits -= 1;
+          hitsEl.textContent = String(state.hits);
+        }
+        sfx.pickup();
+      }
+    }
+
     // Level progression
     if (state.score >= state.nextLevelAt) {
       state.level += 1;
@@ -635,6 +685,34 @@
     for (const a of state.aliens) {
       const alienImg = getAlienImg(a.level || state.level);
       ctx.drawImage(alienImg, a.x, a.y, a.w, a.h);
+    }
+
+    // Satellites (render as glowing orb with ring)
+    for (const p of state.satellites) {
+      const cx = p.x + p.w/2;
+      const cy = p.y + p.h/2;
+      const r = Math.min(p.w, p.h) / 2;
+      ctx.save();
+      // glow
+      const g = ctx.createRadialGradient(cx, cy, r*0.2, cx, cy, r*1.4);
+      g.addColorStop(0, 'rgba(124,241,200,0.95)');
+      g.addColorStop(1, 'rgba(124,241,200,0.0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r*1.4, 0, Math.PI*2);
+      ctx.fill();
+      // core
+      ctx.fillStyle = '#98ffe2';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r*0.7, 0, Math.PI*2);
+      ctx.fill();
+      // ring
+      ctx.strokeStyle = '#7cf1c8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Asteroids (draw as rough rocks)
