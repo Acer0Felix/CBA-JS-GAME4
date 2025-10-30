@@ -33,20 +33,45 @@
   // Assets
   const playerImg = new Image();
   const alienImgs = [
-    new Image(), // alien.svg - Nivel 1-2
-    new Image(), // alien2.svg - Nivel 3-4
-    new Image()  // alien3.svg - Nivel 5+
+    new Image(), // alien.svg - L1-2
+    new Image(), // alien2.svg - L3-4
+    new Image(), // alien3.svg - L5-6
+    new Image(), // alien4.svg - L7-8
+    new Image(), // alien5.svg - L9-10
+    new Image(), // alien6.svg - L11-12
+    new Image()  // alien7.svg - L13+
   ];
   playerImg.src = 'assets/player.svg';
-  alienImgs[0].src = 'assets/alien.svg';
-  alienImgs[1].src = 'assets/alien2.svg';
-  alienImgs[2].src = 'assets/alien3.svg';
+  const alienSrcs = [
+    'assets/alien.svg',
+    'assets/alien2.svg',
+    'assets/alien3.svg',
+    'assets/alien4.svg',
+    'assets/alien5.svg',
+    'assets/alien6.svg',
+    'assets/alien7.svg'
+  ];
+  // Load with graceful fallback to previous sprite if missing
+  for (let i = 0; i < alienImgs.length; i++) {
+    const img = alienImgs[i];
+    img.src = alienSrcs[i];
+    img.onerror = () => {
+      // fallback to last available lower-tier image
+      for (let j = i - 1; j >= 0; j--) {
+        if (alienImgs[j].complete) { img.src = alienImgs[j].src; break; }
+      }
+    };
+  }
 
   // Get alien image based on level
   function getAlienImg(level) {
     if (level <= 2) return alienImgs[0];
     if (level <= 4) return alienImgs[1];
-    return alienImgs[2];
+    if (level <= 6) return alienImgs[2];
+    if (level <= 8) return alienImgs[3];
+    if (level <= 10) return alienImgs[4];
+    if (level <= 12) return alienImgs[5];
+    return alienImgs[6];
   }
 
   // Audio (WebAudio) - initialized on first interaction
@@ -164,6 +189,10 @@
     fireCooldownMs: 180,
     spawnTimer: 0,
     spawnEveryMs: 550,
+    spawnEveryMsMin: 520,
+    twinSpawnChance: 0,
+    asteroidChance: 0.005,
+    asteroidCap: 2,
   };
 
   function resetGame() {
@@ -178,6 +207,10 @@
     state.lastShotAt = 0;
     state.spawnTimer = 0;
     state.spawnEveryMs = 550;
+    state.spawnEveryMsMin = 520;
+    state.twinSpawnChance = 0;
+    state.asteroidChance = 0.005;
+    state.asteroidCap = 2;
     state.level = 1;
     state.nextLevelAt = 10;
     scoreEl.textContent = '0';
@@ -215,21 +248,39 @@
   // Update HUD with active alien types by level
   function updateAlienInfo() {
     if (!alienTypesEl) return;
-    const info = [];
-    if (state.level <= 2) {
-      info.push({ img: 'assets/alien.svg', text: 'Nivel 1-2: Azul/Violeta' });
-    } else if (state.level >= 3 && state.level <= 4) {
-      info.push({ img: 'assets/alien2.svg', text: 'Nivel 3-4: Rojo/Naranja' });
-    } else if (state.level >= 5) {
-      info.push({ img: 'assets/alien3.svg', text: 'Nivel 5+: Amarillo/Dorado' });
-    }
-    alienTypesEl.innerHTML = info.map(item => 
-      `<div class="alien-item">
-        <img src="${item.img}" alt="alien">
-        <span>${item.text}</span>
-      </div>`
-    ).join('');
+    let img = 'assets/alien.svg';
+    let text = '';
+    if (state.level <= 2) { img = 'assets/alien.svg'; text = 'Nivel 1-2'; }
+    else if (state.level <= 4) { img = 'assets/alien2.svg'; text = 'Nivel 3-4'; }
+    else if (state.level <= 6) { img = 'assets/alien3.svg'; text = 'Nivel 5-6'; }
+    else if (state.level <= 8) { img = 'assets/alien4.svg'; text = 'Nivel 7-8'; }
+    else if (state.level <= 10) { img = 'assets/alien5.svg'; text = 'Nivel 9-10'; }
+    else if (state.level <= 12) { img = 'assets/alien6.svg'; text = 'Nivel 11-12'; }
+    else { img = 'assets/alien7.svg'; text = 'Nivel 13+'; }
+    alienTypesEl.innerHTML = `<div class="alien-item">
+      <img src="${img}" alt="alien">
+      <span>${text}</span>
+    </div>`;
   }
+
+  // Level-based difficulty parameters
+  function getLevelDifficulty(level) {
+    if (level <= 2) return { minSpawn: 520, twin: 0.0, asteroidChance: 0.005, asteroidCap: 2 };
+    if (level <= 4) return { minSpawn: 480, twin: 0.10, asteroidChance: 0.008, asteroidCap: 3 };
+    if (level <= 6) return { minSpawn: 420, twin: 0.18, asteroidChance: 0.012, asteroidCap: 4 };
+    if (level <= 8) return { minSpawn: 360, twin: 0.22, asteroidChance: 0.016, asteroidCap: 5 };
+    if (level <= 10) return { minSpawn: 300, twin: 0.26, asteroidChance: 0.020, asteroidCap: 6 };
+    if (level <= 12) return { minSpawn: 260, twin: 0.30, asteroidChance: 0.024, asteroidCap: 7 };
+    return { minSpawn: 220, twin: 0.34, asteroidChance: 0.028, asteroidCap: 8 };
+  }
+  function applyDifficultyForLevel() {
+    const d = getLevelDifficulty(state.level);
+    state.spawnEveryMsMin = d.minSpawn;
+    state.twinSpawnChance = d.twin;
+    state.asteroidChance = d.asteroidChance;
+    state.asteroidCap = d.asteroidCap;
+  }
+  applyDifficultyForLevel();
 
   // Helpers
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -336,14 +387,14 @@
     if (state.spawnTimer >= state.spawnEveryMs) {
       state.spawnTimer = 0;
       // dynamic difficulty: faster spawns over time
-      state.spawnEveryMs = Math.max(200, state.spawnEveryMs - (state.level >= 3 ? 5 : 3));
+      state.spawnEveryMs = Math.max(state.spawnEveryMsMin, state.spawnEveryMs - (state.level >= 3 ? 5 : 3));
       spawnAlien();
-      if (Math.random() < 0.18) spawnAlien();
+      if (Math.random() < state.twinSpawnChance) spawnAlien();
     }
 
     // Occasionally spawn asteroids (independent cadence)
-    if (Math.random() < 0.02) { // ~2% chance per frame ~ 1 every ~0.5s at 60fps
-      if (state.asteroids.length < 6) spawnAsteroid();
+    if (Math.random() < state.asteroidChance) {
+      if (state.asteroids.length < state.asteroidCap) spawnAsteroid();
     }
 
     // Aliens
@@ -514,6 +565,7 @@
       state.fireCooldownMs = Math.max(120, state.fireCooldownMs - 10);
       state.spawnEveryMs = Math.max(200, state.spawnEveryMs - 30);
       updateAlienInfo();
+      applyDifficultyForLevel();
     }
 
     // Stars parallax
