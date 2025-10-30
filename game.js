@@ -198,6 +198,8 @@
 
   // Bonus flash effects for milestones
   const bonusBursts = [];
+  // Floating pickup texts (e.g., +1, +2, +3)
+  const pickupTexts = [];
 
   // Game state
   const state = {
@@ -581,6 +583,14 @@
       if (e.t >= e.duration) bonusBursts.splice(i, 1);
     }
 
+    // Update pickup texts
+    for (let i = pickupTexts.length - 1; i >= 0; i--) {
+      const p = pickupTexts[i];
+      p.t += dt * 1000;
+      p.y += p.vy * dt;
+      if (p.t >= p.duration) pickupTexts.splice(i, 1);
+    }
+
     // Collisions bullets vs aliens
     for (let i = state.aliens.length - 1; i >= 0; i--) {
       const a = state.aliens[i];
@@ -699,9 +709,14 @@
       const p = state.satellites[i];
       if (rectsOverlap(p, state.player)) {
         state.satellites.splice(i, 1);
-        state.lives += (p.livesGranted || 1);
+        const gained = (p.livesGranted || 1);
+        state.lives += gained;
         // hits is a stat; leave unchanged
         sfx.pickup();
+        // floating "+N" text at collision center
+        const cx = p.x + p.w/2;
+        const cy = p.y + p.h/2;
+        pickupTexts.push({ x: cx, y: cy, t: 0, duration: 900, text: `+${gained}`, vy: -60 });
       }
     }
 
@@ -838,6 +853,24 @@
         ctx.textBaseline = 'middle';
         ctx.fillText('Bonus!', e.x, e.y - r - 12);
       }
+      ctx.restore();
+    }
+
+    // Pickup floating texts
+    for (const p of pickupTexts) {
+      const k = Math.max(0, Math.min(1, p.t / p.duration));
+      const alpha = 1 - k;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#98ffe2';
+      ctx.strokeStyle = '#0e2a23';
+      ctx.lineWidth = 3;
+      ctx.font = 'bold 18px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // outline for readability
+      ctx.strokeText(p.text, p.x, p.y);
+      ctx.fillText(p.text, p.x, p.y);
       ctx.restore();
     }
 
