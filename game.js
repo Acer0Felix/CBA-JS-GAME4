@@ -130,6 +130,23 @@
   initStars();
   window.addEventListener('resize', initStars);
 
+  // Mini stars parallax layer (reacts to player movement)
+  const miniStars = [];
+  function initMiniStars() {
+    miniStars.length = 0;
+    const count = Math.floor((canvas.width * canvas.height) / (60_000));
+    for (let i = 0; i < count; i++) {
+      miniStars.push({
+        x: Math.random() * canvas.width / pixelRatio,
+        y: Math.random() * canvas.height / pixelRatio,
+        r: Math.random() * 0.9 + 0.2,
+        s: Math.random() * 18 + 8 // base speed factor
+      });
+    }
+  }
+  initMiniStars();
+  window.addEventListener('resize', initMiniStars);
+
   // Game state
   const state = {
     running: true,
@@ -506,6 +523,18 @@
         s.y = -2; s.x = Math.random() * canvas.width / pixelRatio;
       }
     }
+
+    // Mini stars: subtle forward-motion illusion
+    // Move slightly downward and opposite to player horizontal input
+    for (const ms of miniStars) {
+      ms.y += (ms.s * dt) * 0.12;
+      ms.x -= dx * 80 * dt; // opposite to player input
+      if (ms.y > canvas.height / pixelRatio) {
+        ms.y = -1; ms.x = Math.random() * canvas.width / pixelRatio;
+      }
+      if (ms.x < -2) ms.x = canvas.width / pixelRatio + 2;
+      if (ms.x > canvas.width / pixelRatio + 2) ms.x = -2;
+    }
   }
 
   function draw() {
@@ -524,6 +553,16 @@
       }
       ctx.restore();
     }
+
+    // Mini stars (render as tiny horizontal streaks)
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (const ms of miniStars) {
+      const w = Math.max(1, Math.min(3, ms.r * 2.2));
+      const h = Math.max(1, ms.r * 1.2);
+      ctx.fillRect(ms.x, ms.y, w, h);
+    }
+    ctx.restore();
 
     // Player
     ctx.drawImage(playerImg, state.player.x, state.player.y, state.player.w, state.player.h);
