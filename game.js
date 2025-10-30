@@ -740,18 +740,20 @@
       applyDifficultyForLevel();
     }
 
-    // Stars parallax
+    // Stars parallax (enhanced forward sensation)
+    const forwardFactor = Math.max(0.05, 0.12 + (-dy) * 0.3);
     for (const s of stars) {
-      s.y += (s.s * dt) * 0.08;
+      s.y += (s.s * dt) * forwardFactor;
       if (s.y > canvas.height / pixelRatio) {
         s.y = -2; s.x = Math.random() * canvas.width / pixelRatio;
       }
     }
 
-    // Mini stars: subtle forward-motion illusion
-    // Move slightly downward and opposite to player horizontal input
+    // Mini stars: forward-motion illusion
+    // Move downward (stronger when moving forward) and opposite to player horizontal input
     for (const ms of miniStars) {
-      ms.y += (ms.s * dt) * 0.12;
+      const miniForward = Math.max(0.08, 0.2 + (-dy) * 0.4);
+      ms.y += (ms.s * dt) * miniForward;
       ms.x -= dx * 80 * dt; // opposite to player input
       if (ms.y > canvas.height / pixelRatio) {
         ms.y = -1; ms.x = Math.random() * canvas.width / pixelRatio;
