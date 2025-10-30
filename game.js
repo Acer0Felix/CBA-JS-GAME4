@@ -223,6 +223,7 @@
     satelliteCap: 1,
     powerDoubleShot: false,
     specialAlienPresent: false,
+    lastSpecialSpawnAt: -Infinity,
   };
 
   function resetGame() {
@@ -247,6 +248,7 @@
     state.satelliteCap = 1;
     state.powerDoubleShot = false;
     state.specialAlienPresent = false;
+    state.lastSpecialSpawnAt = -Infinity;
     state.level = 1;
     state.nextLevelAt = 10;
     scoreEl.textContent = '0';
@@ -362,6 +364,13 @@
       dir: 0, hp, canShoot: true, lastShotAt: 0, level: state.level
     });
     state.specialAlienPresent = true;
+    state.lastSpecialSpawnAt = nowMs();
+  }
+
+  function getSpecialAlienChance(level) {
+    const base = 0.12; // higher base chance
+    const scale = 0.005 * Math.max(0, level - 1); // slight increase per level
+    return Math.min(0.3, base + scale);
   }
 
   // Asteroids
@@ -465,8 +474,13 @@
       state.spawnTimer = 0;
       // dynamic difficulty: faster spawns over time
       state.spawnEveryMs = Math.max(state.spawnEveryMsMin, state.spawnEveryMs - (state.level >= 3 ? 5 : 3));
-      // Rare chance to spawn special GIF alien
-      if (Math.random() < 0.03) spawnSpecialAlien();
+      // Chance (scaled by level) or time-based guarantee to spawn special GIF alien
+      const now = nowMs();
+      if (!state.specialAlienPresent) {
+        if ((Math.random() < getSpecialAlienChance(state.level)) || (now - state.lastSpecialSpawnAt > 20000)) {
+          spawnSpecialAlien();
+        }
+      }
       spawnAlien();
       if (Math.random() < state.twinSpawnChance) spawnAlien();
     }
